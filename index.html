@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>75-Day Reset</title>
+<meta name="theme-color" content="#141210">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="75 Reset">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one column "forge" HUD — level plate, daily briefing, quest board, stats + titles, 75-day map, weight log. Deliberately dark-only. */
+:root{
+  --bg:#141210; --panel:#1d1a17; --panel2:#26221e; --ink:#f1e9df; --muted:#a59a8d; --line:#3a332c;
+  --ember:#ff8a3d; --ember-soft:#4a2c18; --gold:#f2c14e; --good:#7fd1a0; --bad:#e2625a;
+  --display:"Chakra Petch",ui-sans-serif,system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible",ui-sans-serif,system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 64px;
+  background-image:radial-gradient(ellipse 80% 40% at 50% 0%, #2a1a10 0%, transparent 70%)}
+.wrap{max-width:720px;margin:0 auto;display:grid;gap:22px}
+h1,h2{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:.02em}
+h2{font-size:1.05rem;text-transform:uppercase;letter-spacing:.1em;color:var(--ember)}
+.label{font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+section{display:grid;gap:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.between{justify-content:space-between}
+
+/* Level plate */
+.plate{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center;border-color:var(--ember-soft)}
+.lvl{width:92px;height:92px;border-radius:50%;display:grid;place-items:center;text-align:center;
+  background:conic-gradient(var(--ember) var(--pct,0%), var(--panel2) 0);position:relative}
+.lvl::after{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--panel)}
+.lvl div{position:relative;z-index:1;line-height:1}
+.lvl b{font-family:var(--display);font-size:2.2rem;display:block}
+.lvl span{font-family:var(--mono);font-size:.62rem;color:var(--muted);letter-spacing:.1em}
+.plate h1{font-size:clamp(1.4rem,5vw,1.9rem)}
+.title{color:var(--gold);font-family:var(--display);font-weight:500}
+.xpbar{height:8px;background:var(--panel2);border-radius:4px;overflow:hidden;margin-top:8px}
+.xpbar i{display:block;height:100%;background:linear-gradient(90deg,var(--ember),var(--gold));width:0}
+.xptext{font-family:var(--mono);font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:4px}
+@media (max-width:420px){.plate{grid-template-columns:1fr;justify-items:start}}
+
+/* Briefing */
+.brief{border-left:3px solid var(--ember);background:linear-gradient(90deg,var(--ember-soft),var(--panel) 70%)}
+.brief p{font-family:var(--display);font-size:clamp(1.15rem,3.6vw,1.45rem);font-weight:500;margin:6px 0 0;line-height:1.3;text-wrap:balance}
+
+/* Quests */
+.quests{padding:0;overflow:hidden}
+.q{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:start;padding:14px 16px;border-top:1px solid var(--line);cursor:pointer}
+.q:first-child{border-top:0}
+.q input{width:22px;height:22px;accent-color:var(--ember);margin-top:2px;cursor:pointer}
+.q b{display:block}
+.q span{color:var(--muted);font-size:.88rem}
+.q .xp{font-family:var(--mono);font-size:.78rem;color:var(--gold);white-space:nowrap}
+.q.done{background:linear-gradient(90deg,#1f2a22,transparent)}
+.q.done b{color:var(--good)}
+.q.locked{opacity:.5;cursor:default}
+.bonus{font-family:var(--mono);font-size:.8rem;color:var(--muted);padding:12px 16px;border-top:1px dashed var(--line);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.bonus.on{color:var(--gold)}
+.warn{border-color:var(--bad);color:var(--ink)}
+.warn b{color:var(--bad);font-family:var(--display);letter-spacing:.06em}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media (max-width:480px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:var(--panel2);border-radius:8px;padding:12px;display:grid;gap:2px}
+.stat b{font-family:var(--display);font-size:1.7rem;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat small{color:var(--muted);font-size:.78rem}
+.counts{display:flex;gap:22px;flex-wrap:wrap}
+.counts div{display:grid}
+.counts b{font-family:var(--mono);font-size:1.3rem;font-variant-numeric:tabular-nums}
+
+/* Titles */
+.titles{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.t{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;gap:2px;opacity:.45}
+.t.got{opacity:1;border-color:var(--gold);background:linear-gradient(135deg,#2e2614,var(--panel))}
+.t b{font-family:var(--display);font-size:.95rem}
+.t.got b{color:var(--gold)}
+.t small{color:var(--muted);font-size:.8rem}
+
+/* Map */
+.grid{display:grid;grid-template-columns:repeat(15,1fr);gap:4px}
+@media (max-width:480px){.grid{grid-template-columns:repeat(10,1fr)}}
+.cell{aspect-ratio:1;max-width:100%;border-radius:3px;background:var(--panel2);font-family:var(--mono);font-size:.55rem;
+  display:grid;place-items:center;color:var(--muted);border:0;padding:0;cursor:pointer}
+.cell.part{background:var(--ember-soft);color:var(--ink)}
+.cell.full{background:var(--ember);color:#1a0f07;font-weight:600}
+.cell.miss{background:#3a1c1a;color:var(--bad)}
+.cell.today{outline:2px solid var(--gold);outline-offset:1px}
+.cell.future{opacity:.35;cursor:default}
+.cell.sel{box-shadow:inset 0 0 0 2px var(--ink)}
+
+.scene{width:100%;height:170px;display:block;border-radius:8px;margin-bottom:12px;background:var(--panel2)}
+#vToday{width:100%;max-width:100%;max-height:340px;object-fit:cover;border-radius:8px;margin-top:14px;display:block}
+.vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+.vimg{position:relative}
+.vimg img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;display:block}
+.vimg button{position:absolute;top:6px;right:6px;font:inherit;font-size:.75rem;background:#141210cc;color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:3px 8px;cursor:pointer}
+.addq{display:grid;gap:10px}
+.addq input[type=text]{width:100%}
+input[type=text],select{font:inherit;background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+.crow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid var(--line)}
+.crow:first-child{border-top:0}
+.crow div{min-width:0}
+input[type=number],input[type=date]{font:inherit;font-family:var(--mono);background:var(--panel2);color:var(--ink);
+  border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:9rem}
+.btn{font:inherit;font-family:var(--display);font-weight:700;letter-spacing:.05em;background:var(--ember);color:#1a0f07;border:0;border-radius:6px;padding:9px 16px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.note{color:var(--muted);font-size:.85rem}
+svg text{fill:var(--muted);font-family:var(--mono);font-size:10px}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+/* Level-up toast */
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+  background:var(--panel);border:1px solid var(--gold);border-radius:10px;padding:14px 22px;text-align:center;z-index:20;
+  box-shadow:0 0 40px #f2c14e40;max-width:calc(100% - 32px)}
+.toast b{font-family:var(--display);font-size:1.4rem;color:var(--gold);display:block;letter-spacing:.06em}
+@media (prefers-reduced-motion:no-preference){
+  .xpbar i{transition:width .7s cubic-bezier(.2,.8,.2,1)}
+  .toast{animation:pop .5s cubic-bezier(.2,1.4,.4,1)}
+  @keyframes pop{from{transform:translate(-50%,30px);opacity:0}}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel plate">
+    <div class="lvl" id="ring"><div><span>LEVEL</span><b id="lvl">1</b></div></div>
+    <div style="min-width:0">
+      <span class="label" id="dayLbl">Day 1 of 75</span>
+      <h1>75-Day Reset</h1>
+      <div class="title" id="curTitle">Novice</div>
+      <div class="xpbar"><i id="xpFill"></i></div>
+      <div class="xptext" id="xpText"></div>
+    </div>
+  </div>
+
+  <div class="panel warn" id="warn" hidden></div>
+
+  <div class="panel brief" aria-live="polite">
+    <canvas class="scene" id="scene" role="img" aria-label="Mountain sunrise showing your progress to the summit"></canvas>
+    <span class="label" id="qLabel">Daily briefing</span>
+    <p id="quote"></p>
+    <img id="vToday" alt="Today's photo from your vision board" hidden>
+  </div>
+
+  <section>
+    <div class="row between"><h2 id="questTitle">Today's quests</h2><span class="label" id="score"></span></div>
+    <div class="panel quests" id="quests"></div>
+  </section>
+
+  <section>
+    <h2>Stats</h2>
+    <div class="stats" id="stats"></div>
+    <div class="counts">
+      <div><span class="label">Total XP</span><b id="cXp">0</b></div>
+      <div><span class="label">Streak</span><b id="cStreak">0</b></div>
+      <div><span class="label">Perfect days</span><b id="cFull">0</b></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="row between"><h2>Vision board</h2><span class="label" id="vCount"></span></div>
+    <div class="panel addq">
+      <label class="btn" for="vFile" style="justify-self:start">Add photos</label>
+      <input type="file" id="vFile" accept="image/*" multiple hidden>
+      <p class="note" style="margin:0">Add photos that pull you forward: the physique you're working toward, the Databricks badge, a trip you're saving for. One appears in each daily briefing. Up to 10.</p>
+    </div>
+    <div class="vgrid" id="vgrid"></div>
+  </section>
+
+  <section>
+    <div class="row between"><h2>Titles</h2><span class="label" id="tCount"></span></div>
+    <div class="titles" id="titles"></div>
+  </section>
+
+  <section>
+    <div class="row between"><h2>The 75</h2><span class="note">Tap a past day to log it</span></div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <section>
+    <h2>Quest settings</h2>
+    <div class="row" id="chips"></div>
+  </section>
+
+  <section>
+    <h2>Your own quests</h2>
+    <form class="panel addq" id="addForm">
+      <input type="text" id="cName" maxlength="60" placeholder="e.g. Read 10 pages, Meditate 10 min" aria-label="Quest name" required>
+      <div class="row">
+        <select id="cStat" aria-label="Stat"><option value="STR">Strength</option><option value="VIT">Vitality</option><option value="INT" selected>Intellect</option><option value="CRF">Craft</option></select>
+        <select id="cXp" aria-label="XP"><option value="10">Easy · 10 XP</option><option value="20" selected>Medium · 20 XP</option><option value="30">Hard · 30 XP</option></select>
+        <button class="btn" type="submit">Add quest</button>
+      </div>
+      <p class="note" style="margin:0">New quests repeat daily from today. Removing one keeps your past days as they were.</p>
+    </form>
+    <div class="panel quests" id="customList"></div>
+  </section>
+
+  <section id="weightSec">
+    <h2>Weight log</h2>
+    <div class="row">
+      <input type="number" id="wIn" step="0.1" min="30" max="300" placeholder="e.g. 82.4" aria-label="Weight">
+      <button class="btn" id="wSave">Log for this day</button>
+      <span class="note">kg or lb, stay consistent</span>
+    </div>
+    <div id="chart" style="overflow-x:auto"></div>
+  </section>
+
+  <section>
+    <div class="row">
+      <label for="start" class="note">Day 1 is</label>
+      <input type="date" id="start">
+      <button class="btn ghost" id="reset">Clear all progress</button>
+      <span class="note" id="resetConfirm" hidden>Tap again to confirm</span>
+    </div>
+    <p class="note">Progress is saved in this browser on this device.</p>
+  </section>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+// stat: STR strength, VIT vitality, INT intellect, CRF craft
+const GOALS = {
+  weight:  {name:"Lose weight", tasks:[["Move for 45 min","Walk, gym, or a run.",30,"STR"],["Hit 10,000 steps","Take calls on foot.",20,"STR"],["Drink 3 L of water","One glass before every meal.",10,"VIT"]]},
+  clean:   {name:"No processed food", tasks:[["Only whole foods","If it has a long ingredient list, skip it.",25,"VIT"]]},
+  sugar:   {name:"No sugar", tasks:[["Zero added sugar","No sweets, juice, or sweetened drinks.",25,"VIT"]]},
+  sql:     {name:"SQL", tasks:[["SQL training, 45 min","",30,"INT"]]},
+  dbx:     {name:"Databricks", tasks:[["Databricks training, 45 min","",30,"INT"]]},
+  project: {name:"Project", tasks:[["1 hour on the project","Commit something, even small.",30,"CRF"]]},
+  sleep:   {name:"Sleep", tasks:[["In bed by 11 pm","Screens off 30 min before.",15,"VIT"]]}
+};
+const STAT_NAMES = {STR:"Strength",VIT:"Vitality",INT:"Intellect",CRF:"Craft"};
+const SQL_PLAN = ["SELECT, WHERE, ORDER BY drills","JOINs: inner, left, anti, semi","GROUP BY, HAVING, conditional aggregates","Subqueries and CTEs","Window functions: ROW_NUMBER, RANK","Window functions: LAG/LEAD, running totals","Gaps-and-islands problems","Pivot / unpivot and CASE logic","Query plans and indexing","Hard problem set","Mock interview: 3 timed problems"];
+const DBX_PLAN = ["Lakehouse architecture, workspace tour","Delta Lake: MERGE, time travel, OPTIMIZE","Spark SQL and PySpark DataFrames","Auto Loader and COPY INTO","Medallion design: bronze, silver, gold","Lakeflow / DLT pipelines","Workflows and job orchestration","Unity Catalog: grants, lineage","Structured Streaming basics","Practice exam + weak spots","Full mock exam, timed"];
+const QUOTES = [
+ "Day one is a decision. Every day after is a vote for it.","You don't need motivation. You need the next small rep.","Discipline is choosing what you want most over what you want now.","Cravings pass in about ten minutes. Outlast them.","A query you write today is one you won't have to Google tomorrow.","Small wins compound faster than big plans.","Your future self is watching. Make him proud.","Sugar is a loan with brutal interest.","Progress hides in boring repetition.","Don't break the chain. Just do today.","Hard choices, easy life. Easy choices, hard life.","Show up tired. Show up anyway.","The body follows the habits, not the intentions.","One clean meal at a time.","Skills are built in the hours nobody sees.","Every JOIN you master is a door that opens.","Fall down seven times, check the box eight.","You are not starting over. You are starting from experience.","Real food. Real effort. Real results.","Partitions, not panic. Break the problem down.","Comfort is the enemy of the person you want to be.","Twenty-two days in. The habit is starting to hold you up.","Keep promises to yourself first.","A good pipeline is idempotent. So is a good routine.","You won't always feel like it. Do it like you do.","The scale is a data point, not a verdict.","Consistency beats intensity, every single week.","Build the system and the results take care of themselves.","Hunger is temporary. Pride lasts.","Learn it well enough to teach it.","Thirty-one days. You've changed more than you think.","Don't negotiate with the old you.","Ship it. Then make it better.","Energy is earned in the kitchen and the gym.","Read the error message. Then read it again.","Your habits are your autopilot. Program them well.","Halfway is a checkpoint, not a finish line.","The middle is where most people quit. You're not most people.","Window functions and willpower: both look hard until they click.","Every no to junk is a yes to you.","Effort is the only thing fully in your control.","Optimize the boring parts of your day.","When it gets hard, get specific: what's the next 10 minutes?","Clean data in, clean results out. Same with food.","Discipline today, freedom later.","You've done harder things than this.","Momentum is a fragile asset. Protect it.","Forty-eight days. Look how far the line has come.","Delta Lake keeps every version. So should you: track it.","The work you do when it's quiet decides the results when it's loud.","Stop waiting for perfect conditions.","Your project gets real the day you show it to someone.","Strength is built one honest day at a time.","Lean body, sharp mind, clear plan.","Don't count the days. Make the days count.","Fifty-six days. The finish line can see you now.","Finish like you started: on purpose.","The mock exam builds confidence, not just answers.","No shortcuts, no regrets.","You are the proof your plan works.","The last stretch is the part that changes you.","Habits don't end on day 75. They graduate.","Tired is fine. Quitting isn't.","Every checkbox is a brick. You're building a house.","Sixty-five days. Breathe, then finish.","Ten days left. Leave nothing on the table.","Stay boring, stay clean, stay sharp.","You already know how to do this.","Tomorrow you'll thank today.","Six days. Hold the line.","Five days. Nothing changes now.","Four. Keep the streak alive.","Three. Final push.","Two. One more after this.","Seventy-five. You kept your word. Now set the next one."
+];
+const TITLES = [
+  ["First Step","Complete your first quest", s=>s.tasks>=1],
+  ["Clean Slate","First perfect day", s=>s.full>=1],
+  ["Iron Week","7-day perfect streak", s=>s.best>=7],
+  ["Query Adept","10 SQL sessions", s=>s.byGoal.sql>=10],
+  ["Lakehouse Builder","10 Databricks sessions", s=>s.byGoal.dbx>=10],
+  ["Sugar Breaker","21 sugar-free days", s=>s.byGoal.sugar>=21],
+  ["Shipper","20 project hours", s=>s.byGoal.project>=20],
+  ["Level 10","Reach level 10", s=>s.level>=10],
+  ["Unbroken","30-day perfect streak", s=>s.best>=30],
+  ["Level 20","Reach level 20", s=>s.level>=20],
+  ["Seventy-Five","Finish Day 75", s=>s.day75],
+  ["Flawless","All 75 days perfect", s=>s.full>=75]
+];
+const RANKS = [[1,"Novice"],[5,"Apprentice"],[10,"Adept"],[15,"Expert"],[20,"Master"],[25,"Legend"]];
+
+const KEY="reset75_v1";
+const pad=n=>String(n).padStart(2,"0");
+const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const fromIso=s=>{const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
+let S={start:iso(new Date()),goals:["weight","clean","sugar","sql","dbx","project"],log:{},weight:{},lastLevel:1};
+try{const r=localStorage.getItem(KEY); if(r) S=Object.assign(S,JSON.parse(r));}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const todayDay=()=>Math.floor((fromIso(iso(new Date()))-fromIso(S.start))/864e5)+1;
+let sel=Math.min(Math.max(todayDay(),1),75);
+
+function quests(day){
+  const wk=Math.min(Math.floor((day-1)/7),10), out=[];
+  S.goals.forEach(g=>GOALS[g].tasks.forEach(([t,d,xp,st],i)=>{
+    let desc=d; if(g==="sql") desc="This week: "+SQL_PLAN[wk]; if(g==="dbx") desc="This week: "+DBX_PLAN[wk];
+    out.push({id:`${g}${i}`,g,t,d:desc,xp,st});
+  }));
+  (S.custom||[]).forEach(c=>{ if(day>=c.from && (c.to==null||day<=c.to)) out.push({id:"c_"+c.id,g:"custom",t:c.t,d:"Your own quest",xp:c.xp,st:c.st}); });
+  return out;
+}
+const xpNeed=l=>100+40*(l-1);           // XP needed to go from level l to l+1
+function levelFrom(xp){let l=1;while(xp>=xpNeed(l)){xp-=xpNeed(l);l++}return{level:l,into:xp,need:xpNeed(l)}}
+
+function compute(){
+  const td=Math.min(todayDay(),75);
+  const s={xp:0,tasks:0,full:0,streak:0,best:0,stats:{STR:10,VIT:10,INT:10,CRF:10},byGoal:{},days:{},day75:false};
+  Object.keys(GOALS).forEach(g=>s.byGoal[g]=0); s.byGoal.custom=0;
+  let run=0;
+  for(let d=1;d<=75;d++){
+    const q=quests(d), l=S.log[d]||{}; let c=0;
+    q.forEach(x=>{ if(l[x.id]){c++; s.xp+=x.xp; s.stats[x.st]++; if(x.id.endsWith("0")) s.byGoal[x.g]++;} });
+    s.tasks+=c;
+    const perfect=q.length&&c===q.length;
+    s.days[d]={c,n:q.length,perfect};
+    if(d<=td){
+      if(perfect){ run++; s.full++; s.xp+=50+Math.min(run,10)*5; }
+      else if(d<td) run=0;
+      s.best=Math.max(s.best,run);
+    }
+    if(d===75&&c>0) s.day75=true;
+  }
+  s.streak=run;
+  Object.assign(s,levelFrom(s.xp));
+  return s;
+}
+
+let toastT;
+function toast(html){const t=document.getElementById("toast");t.innerHTML=html;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3200)}
+
+function render(){
+  const td=todayDay(), s=compute();
+  const rank=[...RANKS].reverse().find(r=>s.level>=r[0])[1];
+  document.getElementById("lvl").textContent=s.level;
+  document.getElementById("ring").style.setProperty("--pct",(s.into/s.need*100)+"%");
+  document.getElementById("xpFill").style.width=(s.into/s.need*100)+"%";
+  document.getElementById("xpText").textContent=`${s.into} / ${s.need} XP to level ${s.level+1}`;
+  document.getElementById("curTitle").textContent=rank;
+  document.getElementById("dayLbl").textContent= td<1?`Starts in ${1-td} day${1-td>1?"s":""}` : td>75?"Challenge complete":`Day ${td} of 75`;
+  if(s.level>(S.lastLevel||1)){ toast(`<span class="label">Level up</span><b>LEVEL ${s.level}</b><span class="note">${rank}</span>`); }
+  S.lastLevel=s.level; save();
+
+  // missed-day warning
+  const w=document.getElementById("warn"), y=td-1;
+  if(y>=1&&y<=75&&!s.days[y].perfect){ w.hidden=false; w.innerHTML=`<b>STREAK BROKEN</b><div class="note" style="color:var(--ink)">Day ${y} wasn't cleared. Clear every quest today to start a new streak. Tap Day ${y} on the map if you did it and forgot to log.</div>`; }
+  else w.hidden=true;
+
+  document.getElementById("quote").textContent=QUOTES[(sel-1)%QUOTES.length];
+  document.getElementById("qLabel").textContent= sel===td?"Daily briefing":`Day ${sel} briefing`;
+
+  // quests
+  const box=document.getElementById("quests"), q=quests(sel), l=S.log[sel]||{}, locked=sel>td; box.innerHTML="";
+  document.getElementById("questTitle").textContent= sel===td?"Today's quests":`Day ${sel} quests`;
+  if(!q.length) box.innerHTML='<div class="bonus">Turn on at least one quest line in Quest settings.</div>';
+  q.forEach(x=>{
+    const lab=document.createElement("label"); lab.className="q"+(l[x.id]?" done":"")+(locked?" locked":"");
+    lab.innerHTML=`<input type="checkbox" id="q-${x.id}" ${l[x.id]?"checked":""} ${locked?"disabled":""}><div style="min-width:0"><b></b><span></span></div><span class="xp">+${x.xp} XP · ${x.st}</span>`;
+    lab.querySelector("b").textContent=x.t; lab.querySelector("div span").textContent=x.d;
+    lab.querySelector("input").onchange=e=>{S.log[sel]=S.log[sel]||{};S.log[sel][x.id]=e.target.checked;save();render();
+      if(e.target.checked&&compute().days[sel].perfect) toast(`<span class="label">All quests cleared</span><b>PERFECT DAY</b><span class="note">+50 XP bonus, plus streak bonus</span>`);};
+    box.appendChild(lab);
+  });
+  if(q.length){const b=document.createElement("div");const d=s.days[sel];b.className="bonus"+(d.perfect?" on":"");
+    b.innerHTML=`<span>Clear all quests: +50 XP and +5 XP per streak day (max +50)</span><span>${d.perfect?"Cleared":`${d.n-d.c} left`}</span>`;box.appendChild(b);}
+  document.getElementById("score").textContent= locked?"Locked":`${s.days[sel].c} / ${s.days[sel].n}`;
+
+  // stats
+  document.getElementById("stats").innerHTML=Object.entries(s.stats).map(([k,v])=>`<div class="stat"><span class="label">${k}</span><b>${v}</b><small>${STAT_NAMES[k]}</small></div>`).join("");
+  document.getElementById("cXp").textContent=s.xp;
+  document.getElementById("cStreak").textContent=s.streak;
+  document.getElementById("cFull").textContent=s.full;
+
+  // titles
+  const got=TITLES.filter(t=>t[2](s)).length;
+  document.getElementById("tCount").textContent=`${got} / ${TITLES.length} unlocked`;
+  document.getElementById("titles").innerHTML=TITLES.map(t=>`<div class="t ${t[2](s)?"got":""}"><b>${t[0]}</b><small>${t[1]}</small></div>`).join("");
+
+  // map
+  const grid=document.getElementById("grid"); grid.innerHTML="";
+  for(let d=1;d<=75;d++){
+    const dd=s.days[d], b=document.createElement("button"); b.className="cell"; b.textContent=d; b.setAttribute("aria-label",`Day ${d}`);
+    if(dd.perfect) b.classList.add("full"); else if(dd.c) b.classList.add("part"); else if(d<td) b.classList.add("miss");
+    if(d===td) b.classList.add("today"); if(d>td) b.classList.add("future"); if(d===sel) b.classList.add("sel");
+    b.onclick=()=>{if(d<=td){sel=d;render();}}; grid.appendChild(b);
+  }
+
+  // quest settings
+  const chips=document.getElementById("chips"); chips.innerHTML="";
+  Object.entries(GOALS).forEach(([k,g])=>{const b=document.createElement("button");b.className="btn "+(S.goals.includes(k)?"":"ghost");b.id="g-"+k;
+    b.textContent=(S.goals.includes(k)?"✓ ":"+ ")+g.name;b.setAttribute("aria-pressed",S.goals.includes(k));
+    b.onclick=()=>{S.goals=S.goals.includes(k)?S.goals.filter(x=>x!==k):[...S.goals,k];save();render();};chips.appendChild(b);});
+
+  drawScene(sel);
+  // vision board
+  const vt=document.getElementById("vToday");
+  if(V.length){vt.src=V[(sel-1)%V.length];vt.hidden=false}else vt.hidden=true;
+  document.getElementById("vCount").textContent=V.length?`${V.length} / 10 photos`:"";
+  const vg=document.getElementById("vgrid"); vg.innerHTML="";
+  V.forEach((src,i)=>{const d=document.createElement("div");d.className="vimg";d.innerHTML=`<img alt="Vision board photo ${i+1}"><button type="button">Remove</button>`;
+    d.querySelector("img").src=src; d.querySelector("button").onclick=()=>{V.splice(i,1);saveV();render();}; vg.appendChild(d);});
+
+  // custom quest list
+  const td2=Math.max(todayDay(),1), act=(S.custom||[]).filter(c=>c.to==null), cl=document.getElementById("customList");
+  cl.hidden=!act.length; cl.innerHTML="";
+  act.forEach(c=>{const r=document.createElement("div");r.className="crow";
+    r.innerHTML=`<div><b></b><div class="note">+${c.xp} XP · ${STAT_NAMES[c.st]}</div></div><button class="btn ghost" type="button">Remove</button>`;
+    r.querySelector("b").textContent=c.t;
+    r.querySelector("button").onclick=()=>{ if(c.from>=td2) S.custom=S.custom.filter(x=>x!==c); else c.to=td2-1; save(); render(); };
+    cl.appendChild(r);});
+
+  document.getElementById("weightSec").hidden=!S.goals.includes("weight");
+  document.getElementById("wIn").value=S.weight[sel]??"";
+  drawChart();
+  document.getElementById("start").value=S.start;
+}
+
+function drawChart(){
+  const pts=Object.entries(S.weight).map(([d,w])=>[+d,+w]).sort((a,b)=>a[0]-b[0]), el=document.getElementById("chart");
+  if(pts.length<2){el.innerHTML='<p class="note">Log your weight on two or more days to see the trend.</p>';return;}
+  const W=640,H=180,L=40,R=12,T=14,B=26; const ys=pts.map(p=>p[1]); let lo=Math.min(...ys),hi=Math.max(...ys); if(hi-lo<1){hi+=.5;lo-=.5}
+  const x=d=>L+(d-1)/74*(W-L-R), y=v=>T+(hi-v)/(hi-lo)*(H-T-B);
+  const path=pts.map((p,i)=>(i?"L":"M")+x(p[0]).toFixed(1)+","+y(p[1]).toFixed(1)).join("");
+  const last=pts.at(-1), diff=(last[1]-pts[0][1]).toFixed(1);
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;min-width:320px" role="img" aria-label="Weight trend">
+   ${[hi,(hi+lo)/2,lo].map(v=>`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-6}" y="${y(v)+3}" text-anchor="end">${v.toFixed(1)}</text>`).join("")}
+   ${[1,25,50,75].map(d=>`<text x="${x(d)}" y="${H-8}" text-anchor="middle">D${d}</text>`).join("")}
+   <path d="${path}L${x(last[0])},${H-B}L${x(pts[0][0])},${H-B}Z" fill="var(--ember-soft)"/>
+   <path d="${path}" fill="none" stroke="var(--ember)" stroke-width="2.5" stroke-linejoin="round"/>
+   <circle cx="${x(last[0])}" cy="${y(last[1])}" r="5" fill="var(--gold)"/></svg>
+   <p class="note">Change since first log: <b style="font-family:var(--mono)">${diff>0?"+":""}${diff}</b></p>`;
+}
+
+// ---- vision board storage (separate key so photos never crowd out progress) ----
+const VKEY="reset75_vision"; let V=[];
+try{V=JSON.parse(localStorage.getItem(VKEY)||"[]")}catch(e){V=[]}
+function saveV(){try{localStorage.setItem(VKEY,JSON.stringify(V));return true}catch(e){return false}}
+function shrink(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>{const im=new Image();
+  im.onload=()=>{const s=Math.min(1,900/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);
+    c.getContext("2d").drawImage(im,0,0,c.width,c.height);res(c.toDataURL("image/jpeg",0.72))};im.onerror=rej;im.src=r.result};r.onerror=rej;r.readAsDataURL(file)})}
+document.getElementById("vFile").onchange=async e=>{
+  for(const f of [...e.target.files]){ if(V.length>=10){toast(`<span class="label">Vision board full</span><b>10 PHOTOS MAX</b>`);break}
+    try{const d=await shrink(f); V.push(d); if(!saveV()){V.pop();toast(`<span class="label">Out of space</span><b>REMOVE A PHOTO</b>`);break}}catch(err){toast(`<span class="label">Couldn't read that photo</span><b>TRY ANOTHER</b>`)} }
+  e.target.value=""; render();
+};
+
+// ---- daily scene: original procedural mountain sunrise ----
+function rng(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function drawScene(day){
+  const c=document.getElementById("scene"), dpr=window.devicePixelRatio||1, w=c.clientWidth||600, h=c.clientHeight||170;
+  c.width=w*dpr; c.height=h*dpr; const g=c.getContext("2d"); g.scale(dpr,dpr);
+  const t=(day-1)/74, R=rng(day*9973);
+  const sky=g.createLinearGradient(0,0,0,h);
+  sky.addColorStop(0,`hsl(${255-45*t},45%,${8+14*t}%)`); sky.addColorStop(1,`hsl(${18+14*t},85%,${22+32*t}%)`);
+  g.fillStyle=sky; g.fillRect(0,0,w,h);
+  for(let i=0;i<60;i++){g.fillStyle=`rgba(255,240,220,${(1-t*1.6)*R()})`; g.fillRect(R()*w,R()*h*0.6,1.4,1.4)}
+  const sx=w*0.72, sy=h*(0.95-0.6*t), glow=g.createRadialGradient(sx,sy,0,sx,sy,90);
+  glow.addColorStop(0,"rgba(255,200,110,.55)"); glow.addColorStop(1,"rgba(255,160,80,0)");
+  g.fillStyle=glow; g.fillRect(0,0,w,h); g.fillStyle="#ffd27a"; g.beginPath(); g.arc(sx,sy,18+6*t,0,7); g.fill();
+  const layers=[[0.42,"#3b2a22"],[0.55,"#2a1f1a"]];
+  layers.forEach(([base,col])=>{g.fillStyle=col; g.beginPath(); g.moveTo(0,h); let y=h*base;
+    for(let x=0;x<=w;x+=w/14){y=Math.max(h*0.25,Math.min(h*0.85,y+(R()-0.5)*h*0.22)); g.lineTo(x,y)} g.lineTo(w,h); g.fill();});
+  const peakX=w*0.42, peakY=h*0.2;
+  g.fillStyle="#18120f"; g.beginPath(); g.moveTo(0,h); g.lineTo(-w*0.05,h*0.9); g.lineTo(peakX-w*0.12,h*0.5); g.lineTo(peakX-w*0.04,h*0.38); g.lineTo(peakX,peakY);
+  g.lineTo(peakX+w*0.06,h*0.34); g.lineTo(peakX+w*0.16,h*0.55); g.lineTo(w*0.85,h*0.8); g.lineTo(w,h*0.9); g.lineTo(w,h); g.fill();
+  const path=[]; for(let i=0;i<=40;i++){const p=i/40; path.push([w*0.06+(peakX-w*0.06)*p+Math.sin(p*14)*w*0.035*(1-p), h-(h-peakY)*p])}
+  g.setLineDash([3,4]); g.strokeStyle="rgba(255,180,110,.6)"; g.lineWidth=1.5; g.beginPath(); path.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y)); g.stroke(); g.setLineDash([]);
+  g.strokeStyle="#f1e9df"; g.lineWidth=1.5; g.beginPath(); g.moveTo(peakX,peakY); g.lineTo(peakX,peakY-18); g.stroke();
+  g.fillStyle="#ff8a3d"; g.beginPath(); g.moveTo(peakX,peakY-18); g.lineTo(peakX+12,peakY-14); g.lineTo(peakX,peakY-10); g.fill();
+  const [cx,cy]=path[Math.round(t*40)]; g.fillStyle="#f2c14e"; g.shadowColor="#f2c14e"; g.shadowBlur=12; g.beginPath(); g.arc(cx,cy,5,0,7); g.fill(); g.shadowBlur=0;
+  g.fillStyle="rgba(241,233,223,.9)"; g.font="600 11px 'JetBrains Mono',monospace"; g.textAlign="right";
+  g.fillText(day>=75?"SUMMIT REACHED":`${75-day} DAYS TO SUMMIT`,w-12,18);
+}
+let rz; window.addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(()=>drawScene(sel),150)});
+
+document.getElementById("addForm").onsubmit=e=>{e.preventDefault();
+  const n=document.getElementById("cName").value.trim(); if(!n) return;
+  S.custom=S.custom||[]; S.custom.push({id:Date.now().toString(36),t:n,xp:+document.getElementById("cXp").value,st:document.getElementById("cStat").value,from:Math.max(todayDay(),1),to:null});
+  document.getElementById("cName").value=""; save(); render(); toast(`<span class="label">New quest added</span><b>${n.replace(/[<>&]/g,"")}</b>`);};
+document.getElementById("wSave").onclick=()=>{const v=parseFloat(document.getElementById("wIn").value); if(isNaN(v)) delete S.weight[sel]; else S.weight[sel]=v; save(); render();};
+document.getElementById("start").onchange=e=>{if(e.target.value){S.start=e.target.value;sel=Math.min(Math.max(todayDay(),1),75);save();render();}};
+let armed=false;
+document.getElementById("reset").onclick=()=>{const c=document.getElementById("resetConfirm");
+  if(!armed){armed=true;c.hidden=false;setTimeout(()=>{armed=false;c.hidden=true},4000);return;}
+  S.log={};S.weight={};S.lastLevel=1;armed=false;c.hidden=true;save();render();};
+render();
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
+</script>
+</body>
+</html>
