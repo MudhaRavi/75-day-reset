@@ -73,8 +73,8 @@ section{display:grid;gap:12px}
 .warn b{color:var(--bad);font-family:var(--display);letter-spacing:.06em}
 
 /* Stats */
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-@media (max-width:480px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+@media (max-width:560px){.stats{grid-template-columns:repeat(3,1fr)}}
 .stat{background:var(--panel2);border-radius:8px;padding:12px;display:grid;gap:2px}
 .stat b{font-family:var(--display);font-size:1.7rem;font-variant-numeric:tabular-nums;line-height:1.1}
 .stat small{color:var(--muted);font-size:.78rem}
@@ -108,6 +108,11 @@ section{display:grid;gap:12px}
 .vimg{position:relative}
 .vimg img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;display:block}
 .vimg button{position:absolute;top:6px;right:6px;font:inherit;font-size:.75rem;background:#141210cc;color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:3px 8px;cursor:pointer}
+.skill{display:grid;gap:4px;margin-top:16px;padding-top:14px;border-top:1px dashed var(--line)}
+.skill b{font-family:var(--display);font-size:1.1rem;color:var(--gold)}
+.skill span:not(.label){color:var(--ink);font-size:.95rem}
+.skill .skillDo{color:var(--muted)!important;font-size:.9rem!important}
+.skill .skillDo::before{content:"Try today: ";color:var(--ember);font-weight:700}
 .addq{display:grid;gap:10px}
 .addq input[type=text]{width:100%}
 input[type=text],select{font:inherit;background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
@@ -153,6 +158,12 @@ svg text{fill:var(--muted);font-family:var(--mono);font-size:10px}
     <canvas class="scene" id="scene" role="img" aria-label="Mountain sunrise showing your progress to the summit"></canvas>
     <span class="label" id="qLabel">Daily briefing</span>
     <p id="quote"></p>
+    <div class="skill" id="skill">
+      <span class="label">People skill of the day</span>
+      <b id="skillT"></b>
+      <span id="skillB"></span>
+      <span class="skillDo" id="skillD"></span>
+    </div>
     <img id="vToday" alt="Today's photo from your vision board" hidden>
   </div>
 
@@ -201,7 +212,7 @@ svg text{fill:var(--muted);font-family:var(--mono);font-size:10px}
     <form class="panel addq" id="addForm">
       <input type="text" id="cName" maxlength="60" placeholder="e.g. Read 10 pages, Meditate 10 min" aria-label="Quest name" required>
       <div class="row">
-        <select id="cStat" aria-label="Stat"><option value="STR">Strength</option><option value="VIT">Vitality</option><option value="INT" selected>Intellect</option><option value="CRF">Craft</option></select>
+        <select id="cStat" aria-label="Stat"><option value="STR">Strength</option><option value="VIT">Vitality</option><option value="INT" selected>Intellect</option><option value="CRF">Craft</option><option value="CHA">Charisma</option></select>
         <select id="cXp" aria-label="XP"><option value="10">Easy · 10 XP</option><option value="20" selected>Medium · 20 XP</option><option value="30">Hard · 30 XP</option></select>
         <button class="btn" type="submit">Add quest</button>
       </div>
@@ -241,9 +252,44 @@ const GOALS = {
   sql:     {name:"SQL", tasks:[["SQL training, 45 min","",30,"INT"]]},
   dbx:     {name:"Databricks", tasks:[["Databricks training, 45 min","",30,"INT"]]},
   project: {name:"Project", tasks:[["1 hour on the project","Commit something, even small.",30,"CRF"]]},
-  sleep:   {name:"Sleep", tasks:[["In bed by 11 pm","Screens off 30 min before.",15,"VIT"]]}
+  sleep:   {name:"Sleep", tasks:[["In bed by 11 pm","Screens off 30 min before.",15,"VIT"]]},
+  people:  {name:"Win friends", tasks:[["Practice today's people skill","",15,"CHA"]]}
 };
-const STAT_NAMES = {STR:"Strength",VIT:"Vitality",INT:"Intellect",CRF:"Craft"};
+const STAT_NAMES = {STR:"Strength",VIT:"Vitality",INT:"Intellect",CRF:"Craft",CHA:"Charisma"};
+// Daily people skills: ideas from Dale Carnegie's "How to Win Friends and Influence People", rewritten in our own words.
+const PEOPLE = [
+ ["Hold back the criticism","People rarely change because they were scolded. Try to understand why they did it.","Catch one complaint before it leaves your mouth and ask a question instead."],
+ ["Appreciate out loud","Honest, specific thanks goes further than flattery ever will.","Thank one teammate for something specific they did this week."],
+ ["Start from what they want","People act on their own reasons, not yours.","Before your next request, write one line on what's in it for them."],
+ ["Be curious about people","Interest in others makes more friends than trying to impress them.","Ask a colleague one question about life outside work, and listen."],
+ ["Lead with warmth","A friendly face sets the tone before you say a word.","Start your first call today with a real smile, camera on if you can."],
+ ["Names matter","A person's own name is one of the best sounds they hear.","Use people's names in today's chats and learn one new name."],
+ ["Listen more than you talk","Most people want to be heard more than they want advice.","In one conversation, only ask follow-up questions for five minutes."],
+ ["Talk about their world","Conversations come alive around what the other person cares about.","Open a chat with something the other person is into, not your agenda."],
+ ["Make people feel valued","Everyone wants to matter. Show them they do, and mean it.","Give someone public credit in a stand-up or team channel."],
+ ["Skip the argument","Even when you win an argument, you lose the goodwill.","When you disagree today, say 'You may be right, let me look again.'"],
+ ["Respect their view","Telling someone flatly they're wrong makes them dig in.","Swap 'that's wrong' for 'help me understand how you got there.'"],
+ ["Own mistakes fast","Admitting an error quickly disarms people and builds trust.","If something of yours broke, say so first, before anyone asks."],
+ ["Open friendly","A calm, friendly start wins more than force.","Begin your next tough message with genuine goodwill."],
+ ["Start with agreement","Get early yeses; common ground makes the hard part easier.","In your next discussion, name what you both agree on first."],
+ ["Let them talk it out","People trust conclusions they reached themselves.","In one meeting, let others speak fully before you add your view."],
+ ["Let the idea be theirs","People back plans they helped shape.","Ask 'how would you approach this?' before pitching your design."],
+ ["See it their way","Every person has reasons that make sense to them.","Before replying to a frustrating message, restate their point to yourself."],
+ ["Show sympathy","Understanding cools down most tense moments.","Say 'I can see why that's frustrating' when someone vents today."],
+ ["Appeal to the best in people","Most people want to be fair and do good work.","Frame a request around doing the right thing for the team or customer."],
+ ["Make it vivid","A demo or a picture persuades better than a paragraph.","Show a quick diagram or demo instead of describing it in text."],
+ ["Offer a challenge","People rise to a good challenge.","Invite someone to beat a benchmark: faster query, cleaner pipeline."],
+ ["Praise before feedback","Starting with what's good makes the hard part easier to hear.","In your next code review, open with what works."],
+ ["Correct gently","Point at mistakes indirectly so people can fix them without shame.","Phrase review comments as suggestions, not verdicts."],
+ ["Share your own slips","Mentioning your own errors first makes feedback land softer.","Before correcting someone, mention a time you made the same mistake."],
+ ["Ask, don't order","Questions get cooperation; commands get resistance.","Turn one instruction today into 'what do you think about…?'"],
+ ["Let people save face","Protecting someone's dignity earns lasting loyalty.","Give feedback privately, never in front of the group."],
+ ["Praise every step","Recognizing small progress keeps people improving.","Notice one small improvement someone made and tell them."],
+ ["Give a good reputation","People live up to the reputation you give them.","Tell someone what they're great at, and ask them to lead on it."],
+ ["Make it feel fixable","Encouragement makes problems look solvable.","Help someone stuck by breaking the fix into one easy next step."],
+ ["Make it a win for them","People happily do what they see value in.","Pitch your next ask in terms of how it helps the other person."]
+];
+const peopleFor = d => PEOPLE[(d-1) % PEOPLE.length];
 const SQL_PLAN = ["SELECT, WHERE, ORDER BY drills","JOINs: inner, left, anti, semi","GROUP BY, HAVING, conditional aggregates","Subqueries and CTEs","Window functions: ROW_NUMBER, RANK","Window functions: LAG/LEAD, running totals","Gaps-and-islands problems","Pivot / unpivot and CASE logic","Query plans and indexing","Hard problem set","Mock interview: 3 timed problems"];
 const DBX_PLAN = ["Lakehouse architecture, workspace tour","Delta Lake: MERGE, time travel, OPTIMIZE","Spark SQL and PySpark DataFrames","Auto Loader and COPY INTO","Medallion design: bronze, silver, gold","Lakeflow / DLT pipelines","Workflows and job orchestration","Unity Catalog: grants, lineage","Structured Streaming basics","Practice exam + weak spots","Full mock exam, timed"];
 const QUOTES = [
@@ -269,16 +315,17 @@ const KEY="reset75_v1";
 const pad=n=>String(n).padStart(2,"0");
 const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const fromIso=s=>{const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
-let S={start:iso(new Date()),goals:["weight","clean","sugar","sql","dbx","project"],log:{},weight:{},lastLevel:1};
+let S={start:"2026-11-10",goals:["weight","clean","sugar","sql","dbx","project","people"],log:{},weight:{},lastLevel:1};
 try{const r=localStorage.getItem(KEY); if(r) S=Object.assign(S,JSON.parse(r));}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+if(!S.peopleAdded){ if(!S.goals.includes("people")) S.goals.push("people"); S.peopleAdded=true; save(); }
 const todayDay=()=>Math.floor((fromIso(iso(new Date()))-fromIso(S.start))/864e5)+1;
 let sel=Math.min(Math.max(todayDay(),1),75);
 
 function quests(day){
   const wk=Math.min(Math.floor((day-1)/7),10), out=[];
   S.goals.forEach(g=>GOALS[g].tasks.forEach(([t,d,xp,st],i)=>{
-    let desc=d; if(g==="sql") desc="This week: "+SQL_PLAN[wk]; if(g==="dbx") desc="This week: "+DBX_PLAN[wk];
+    let desc=d; if(g==="people") desc=peopleFor(day)[2]; if(g==="sql") desc="This week: "+SQL_PLAN[wk]; if(g==="dbx") desc="This week: "+DBX_PLAN[wk];
     out.push({id:`${g}${i}`,g,t,d:desc,xp,st});
   }));
   (S.custom||[]).forEach(c=>{ if(day>=c.from && (c.to==null||day<=c.to)) out.push({id:"c_"+c.id,g:"custom",t:c.t,d:"Your own quest",xp:c.xp,st:c.st}); });
@@ -289,7 +336,7 @@ function levelFrom(xp){let l=1;while(xp>=xpNeed(l)){xp-=xpNeed(l);l++}return{lev
 
 function compute(){
   const td=Math.min(todayDay(),75);
-  const s={xp:0,tasks:0,full:0,streak:0,best:0,stats:{STR:10,VIT:10,INT:10,CRF:10},byGoal:{},days:{},day75:false};
+  const s={xp:0,tasks:0,full:0,streak:0,best:0,stats:{STR:10,VIT:10,INT:10,CRF:10,CHA:10},byGoal:{},days:{},day75:false};
   Object.keys(GOALS).forEach(g=>s.byGoal[g]=0); s.byGoal.custom=0;
   let run=0;
   for(let d=1;d<=75;d++){
@@ -376,6 +423,8 @@ function render(){
     b.onclick=()=>{S.goals=S.goals.includes(k)?S.goals.filter(x=>x!==k):[...S.goals,k];save();render();};chips.appendChild(b);});
 
   drawScene(sel);
+  const ps=peopleFor(sel); document.getElementById("skillT").textContent=ps[0];
+  document.getElementById("skillB").textContent=ps[1]; document.getElementById("skillD").textContent=ps[2];
   // vision board
   const vt=document.getElementById("vToday");
   if(V.length){vt.src=V[(sel-1)%V.length];vt.hidden=false}else vt.hidden=true;

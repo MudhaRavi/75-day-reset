@@ -1,6 +1,6 @@
 // Offline support: serve the app shell from cache, refresh it in the background.
 // Change the version name whenever you update the app so phones pick up the new files.
-const CACHE = "reset75-v1";
+const CACHE = "reset75-v2";
 const FILES = ["./", "index.html", "manifest.json", "icon-192.png", "icon-512.png", "apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
